@@ -1,3 +1,4 @@
+// controllers/reportController.js
 import fs from "fs";
 const fsp = fs.promises;
 import mongoose from "mongoose";
@@ -25,23 +26,59 @@ export const uploadReport = async (req, res) => {
     try { await fsp.unlink(req.file.path); } catch (_) {}
   }
 
-  console.log("PARSED BEFORE SAVE:", JSON.stringify(parsed, null, 2));
+  const sanitized = {
+    fileName: req.file.originalname,
+    basicDetails: {
+      name: parsed.basicDetails.name || "",
+      mobile: parsed.basicDetails.mobile || "",
+      pan: parsed.basicDetails.pan || "",
+      creditScore:
+        parsed.basicDetails.creditScore != null && parsed.basicDetails.creditScore >= 300
+          ? parsed.basicDetails.creditScore
+          : null,
+    },
+    summary: {
+      totalAccounts: parsed.summary.totalAccounts ?? 0,
+      activeAccounts: parsed.summary.activeAccounts ?? 0,
+      closedAccounts: parsed.summary.closedAccounts ?? 0,
+      currentBalance: parsed.summary.currentBalance ?? 0,
+      securedAmount: parsed.summary.securedAmount ?? 0,
+      unsecuredAmount: parsed.summary.unsecuredAmount ?? 0,
+      enquiriesLast7Days: parsed.summary.enquiriesLast7Days ?? 0,
+    },
+    accounts: (parsed.accounts ?? [])
+      .map((a) => ({
+        type: a.type || "Other",
+        provider: a.provider || "",
+        addresses: Array.isArray(a.addresses) ? a.addresses : [],
+        accountNumber: a.accountNumber || "",
+        amountOverdue: a.amountOverdue ?? 0,
+        currentBalance: a.currentBalance ?? 0,
+        status: a.status || "Unknown",
+      }))
+      .filter((acc) => acc.accountNumber || acc.currentBalance || acc.amountOverdue || acc.provider),
+  };
+
+  console.log("PARSED BEFORE SAVE:", JSON.stringify(sanitized, null, 2));
 
   const doc = new Report({
-    fileName: req.file.originalname,
-    basicDetails: parsed.basicDetails,
-    summary: parsed.summary,
-    accounts: parsed.accounts,
+    fileName: sanitized.fileName,
+    basicDetails: sanitized.basicDetails,
+    summary: sanitized.summary,
+    accounts: sanitized.accounts,
   });
 
   try {
     await doc.save();
   } catch (e) {
     console.error("Error saving report:", e);
+    if (e && e.name === "ValidationError") {
+      return res.status(422).json({ message: "Validation failed", details: e.errors });
+    }
     return res.status(500).json({ message: "Failed to save report" });
   }
 
-  res.status(201).json({ message: "File processed and saved successfully", reportId: doc._id });
+  return res.status(201).json({ message: "File processed and saved successfully", reportId: doc._id });
 };
 
 export const getReports = async (req, res) => {

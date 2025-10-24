@@ -1,4 +1,3 @@
-// utils/xmlParser.js
 import { parseStringPromise, processors } from "xml2js";
 
 const stripPrefix = processors.stripPrefix;

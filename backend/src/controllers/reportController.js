@@ -1,4 +1,3 @@
-// controllers/reportController.js
 import fs from "fs";
 const fsp = fs.promises;
 import mongoose from "mongoose";

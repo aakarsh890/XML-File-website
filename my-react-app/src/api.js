@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://xml-file-website-backend.onrender.com", // change if backend runs elsewhere
+  baseURL: "https://xml-file-website-backend.onrender.com/api", // change if backend runs elsewhere
 });
 
 // Upload XML
